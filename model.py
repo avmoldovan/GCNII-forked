@@ -36,6 +36,30 @@ class GraphConvolution(nn.Module):
         output = theta*torch.mm(support, self.weight)+(1-theta)*r
         if self.residual:
             output = output+input
+
+        # node degrees
+        degrees = adj.sum(dim=1)
+
+        # Find indices of top 100 nodes with highest degrees
+        _, top_nodes = torch.topk(degrees.values(), 100)
+
+        # # Extract the submatrix of adj corresponding to the top nodes
+        # sub_adj = adj.to_dense()[top_nodes, :][:, top_nodes]
+        # # Find pairs of nodes in the top 100 that are connected
+        # connected_pairs = (sub_adj > 0).nonzero(as_tuple=False)
+
+        # Find connections of top 100 nodes with all other nodes
+        connected_pairs = []
+        for node in top_nodes:
+            # Find nodes connected to the current top node
+            connected_nodes = ((adj.to_dense())[node] > 0).nonzero(as_tuple=False).squeeze()
+            # Create pairs (top node, connected node)
+            pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
+            connected_pairs.append(pairs)
+
+        connected_pairs = torch.cat(connected_pairs, dim=0)
+
+
         return output
 
 class GCNII(nn.Module):

@@ -11,6 +11,13 @@ from torch_geometric.utils.num_nodes import maybe_num_nodes
 
 from torch_geometric.nn.inits import glorot, zeros
 
+import pandas as pd
+import matplotlib.pyplot as plt
+
+from PyIF import te_compute as te
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 Adj = Union[Tensor, SparseTensor]
 OptTensor = Optional[Tensor]
 PairTensor = Tuple[Tensor, Tensor]
@@ -95,6 +102,8 @@ class GCNIIdenseConv(MessagePassing):
         self.weight1 = Parameter(torch.Tensor(in_channels, out_channels))
         self.weight2 = Parameter(torch.Tensor(in_channels, out_channels))
 
+        self.baseline = False
+
         self.reset_parameters()
 
     def reset_parameters(self):
@@ -136,13 +145,26 @@ class GCNIIdenseConv(MessagePassing):
         initial = (1-beta)*(alpha)*h0 + beta*torch.matmul(h0, self.weight2)
 
         # propagate_type: (x: Tensor, edge_weight: OptTensor)
-        out = self.propagate(edge_index, x=support, edge_weight=edge_weight,
-                             size=None)+initial
+        out = self.propagate(edge_index, x=support, edge_weight=edge_weight, size=None)+initial
+
+        torch.cuda.empty_cache()
+
         return out
 
-    def message(self, x_j: Tensor, edge_weight: OptTensor) -> Tensor:
+    def message(self, x_i: Tensor, x_j: Tensor, edge_weight: OptTensor) -> Tensor:
         assert edge_weight is not None
-        return edge_weight.view(-1, 1) * x_j
+
+        if self.baseline == True:
+            return edge_weight.view(-1, 1) * x_j
+
+        tes = []
+
+        for i, xi in enumerate(x_i.t().detach().cpu().numpy()):
+            teitem = te.te_compute(xi, x_j[:, i].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
+            tes.append(teitem)  # * float(i+1))
+        detached = torch.tensor(tes).to(device).to(torch.float32)
+        # best
+        return torch.sigmoid(detached * x_j)
 
     def message_and_aggregate(self, adj_t: SparseTensor, x: Tensor) -> Tensor:
         return matmul(adj_t, x, reduce=self.aggr)

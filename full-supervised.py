@@ -11,6 +11,7 @@ from process import *
 from utils import *
 from model import *
 import uuid
+import uuid
 
 # Training settings
 parser = argparse.ArgumentParser()

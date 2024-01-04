@@ -76,7 +76,7 @@ def test(model, data, y_true,split_idx, evaluator):
 
 def main():
     parser = argparse.ArgumentParser(description='OGBN-Arxiv (Full-Batch)')
-    parser.add_argument('--device', type=int, default=1)
+    parser.add_argument('--device', type=int, default=0)
     parser.add_argument('--log_steps', type=int, default=10)
     parser.add_argument('--num_layers', type=int, default=16)
     parser.add_argument('--hidden_channels', type=int, default=256)
@@ -91,7 +91,8 @@ def main():
     args = parser.parse_args()
     print(args)
 
-    device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
+    #device = f'cuda:{args.device}' if torch.cuda.is_available() else 'cpu'
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     device = torch.device(device)
 
     dataset = PygNodePropPredDataset(name='ogbn-arxiv')
