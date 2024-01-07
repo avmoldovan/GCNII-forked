@@ -50,12 +50,19 @@ class GraphConvolution(nn.Module):
 
         # Find connections of top 100 nodes with all other nodes
         connected_pairs = []
+        connected_values = []
+        pair_dict = {}
         for node in top_nodes:
             # Find nodes connected to the current top node
             connected_nodes = ((adj.to_dense())[node] > 0).nonzero(as_tuple=False).squeeze()
+
             # Create pairs (top node, connected node)
             pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
             connected_pairs.append(pairs)
+
+            pair_dict = dict(zip(connected_pairs, [None]*len(connected_pairs)))
+
+            connected_values.append(input[connected_nodes])
 
         connected_pairs = torch.cat(connected_pairs, dim=0)
 

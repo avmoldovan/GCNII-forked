@@ -153,13 +153,14 @@ class GCNIIdenseConv(MessagePassing):
 
     def message(self, x_i: Tensor, x_j: Tensor, edge_weight: OptTensor) -> Tensor:
         assert edge_weight is not None
+        return edge_weight.view(-1, 1) * x_j
 
-        if self.baseline == True:
-            return edge_weight.view(-1, 1) * x_j
+        # if self.baseline == True:
+        #     return edge_weight.view(-1, 1) * x_j
 
         tes = []
-
-        for i, xi in enumerate(x_i.t().detach().cpu().numpy()):
+        xi_detached = x_i.t().detach().cpu().numpy()
+        for i, xi in enumerate(xi_detached):
             teitem = te.te_compute(xi, x_j[:, i].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
             tes.append(teitem)  # * float(i+1))
         detached = torch.tensor(tes).to(device).to(torch.float32)
