@@ -4,6 +4,8 @@ import math
 import numpy as np
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
+from functools import reduce
+from PyIF import te_compute as te
 
 class GraphConvolution(nn.Module):
 
@@ -56,15 +58,29 @@ class GraphConvolution(nn.Module):
             # Find nodes connected to the current top node
             connected_nodes = ((adj.to_dense())[node] > 0).nonzero(as_tuple=False).squeeze()
 
-            # Create pairs (top node, connected node)
-            pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
-            connected_pairs.append(pairs)
+            #reduce((lambda x, y: te.te_compute(x, y, k=1, embedding=1, safetyCheck=False, GPU=False)), input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy())
 
-            pair_dict = dict(zip(connected_pairs, [None]*len(connected_pairs)))
+            for cn in connected_nodes:
 
-            connected_values.append(input[connected_nodes])
+                tes = []
+                #xi_detached = x_i.t().detach().cpu().numpy()
+                #for i, xi in enumerate(xi_detached):
+                teitem = te.te_compute(input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
+                output[node] += teitem
+                #pair_dict[(node.item(), cn.item())] = teitem
+                    #tes.append(teitem)  # * float(i+1))
+#                detached = torch.tensor(tes).to(device).to(torch.float32)
 
-        connected_pairs = torch.cat(connected_pairs, dim=0)
+        #
+            # # Create pairs (top node, connected node)
+            # pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
+            # connected_pairs.append(pairs)
+            #
+            # pair_dict = dict(zip(connected_pairs, [None]*len(connected_pairs)))
+            #
+            # connected_values.append(input[connected_nodes])
+
+        #connected_pairs = torch.cat(connected_pairs, dim=0)
 
 
         return output
