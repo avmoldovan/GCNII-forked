@@ -26,64 +26,82 @@ class GraphConvolution(nn.Module):
         stdv = 1. / math.sqrt(self.out_features)
         self.weight.data.uniform_(-stdv, stdv)
 
+    def gc_layers(self, x):
+        # Calculate pairwise Euclidean distances
+        n = x.size(0)  # Number of nodes
+        x_expanded = x.unsqueeze(1).expand(n, n, -1)
+        distances = torch.norm(x_expanded - x_expanded.transpose(0, 1), dim=2)
+        return distances
+
     def forward(self, input, adj , h0 , lamda, alpha, l):
-        theta = math.log(lamda/l+1)
+        theta = math.log(lamda / l + 1)
         hi = torch.spmm(adj, input)
+
         if self.variant:
-            support = torch.cat([hi,h0],1)
-            r = (1-alpha)*hi+alpha*h0
+            support = torch.cat([hi, h0], 1)
+            r = (1 - alpha) * hi + alpha * h0
         else:
-            support = (1-alpha)*hi+alpha*h0
+            support = (1 - alpha) * hi + alpha * h0
             r = support
-        output = theta*torch.mm(support, self.weight)+(1-theta)*r
-        if self.residual:
-            output = output+input
-
-        # node degrees
-        degrees = adj.sum(dim=1)
-
-        # Find indices of top 100 nodes with highest degrees
-        _, top_nodes = torch.topk(degrees.values(), 100)
-
-        # # Extract the submatrix of adj corresponding to the top nodes
-        # sub_adj = adj.to_dense()[top_nodes, :][:, top_nodes]
-        # # Find pairs of nodes in the top 100 that are connected
-        # connected_pairs = (sub_adj > 0).nonzero(as_tuple=False)
-
-        # Find connections of top 100 nodes with all other nodes
-        connected_pairs = []
-        connected_values = []
-        pair_dict = {}
-        for node in top_nodes:
-            # Find nodes connected to the current top node
-            connected_nodes = ((adj.to_dense())[node] > 0).nonzero(as_tuple=False).squeeze()
-
-            #reduce((lambda x, y: te.te_compute(x, y, k=1, embedding=1, safetyCheck=False, GPU=False)), input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy())
-
-            for cn in connected_nodes:
-
-                tes = []
-                #xi_detached = x_i.t().detach().cpu().numpy()
-                #for i, xi in enumerate(xi_detached):
-                teitem = te.te_compute(input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
-                output[node] += teitem
-                #pair_dict[(node.item(), cn.item())] = teitem
-                    #tes.append(teitem)  # * float(i+1))
-#                detached = torch.tensor(tes).to(device).to(torch.float32)
 
         #
-            # # Create pairs (top node, connected node)
-            # pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
-            # connected_pairs.append(pairs)
-            #
-            # pair_dict = dict(zip(connected_pairs, [None]*len(connected_pairs)))
-            #
-            # connected_values.append(input[connected_nodes])
+        #
+        # # node degrees
+        # degrees = adj.sum(dim=1)
+        #
+        # # Find indices of top 100 nodes with highest degrees
+        # _, top_nodes = torch.topk(degrees.values(), 25, largest=False)
+        #
+        # # # Extract the submatrix of adj corresponding to the top nodes
+        # # sub_adj = adj.to_dense()[top_nodes, :][:, top_nodes]
+        # # # Find pairs of nodes in the top 100 that are connected
+        # # connected_pairs = (sub_adj > 0).nonzero(as_tuple=False)
+        #
+        # # Find connections of top 100 nodes with all other nodes
+        # connected_pairs = []
+        # connected_values = []
+        # pair_dict = {}
+        # for node in top_nodes:
+        #     # Find nodes connected to the current top node
+        #     connected_nodes = ((adj.to_dense())[node] > 0).nonzero(as_tuple=False).squeeze()
+        #
+        #     # reduce((lambda x, y: te.te_compute(x, y, k=1, embedding=1, safetyCheck=False, GPU=False)), input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy())
+        #
+        #     for cn in connected_nodes:
+        #         tes = []
+        #         # xi_detached = x_i.t().detach().cpu().numpy()
+        #         # for i, xi in enumerate(xi_detached):
+        #         teitem = te.te_compute(input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
+        #         # try to update support only for nodes with connections that have smallest feature length
+        #         support[node] *= teitem
+        #         # pair_dict[(node.item(), cn.item())] = teitem
+        #         # tes.append(teitem)  # * float(i+1))
+        # #                detached = torch.tensor(tes).to(device).to(torch.float32)
+        #
+        # #
+        # # # Create pairs (top node, connected node)
+        # # pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
+        # # connected_pairs.append(pairs)
+        # #
+        # # pair_dict = dict(zip(connected_pairs, [None]*len(connected_pairs)))
+        # #
+        # # connected_values.append(input[connected_nodes])
+        #
+        # # connected_pairs = torch.cat(connected_pairs, dim=0)
+        #
 
-        #connected_pairs = torch.cat(connected_pairs, dim=0)
 
+
+
+        output = theta * torch.mm(support, self.weight) + (1 - theta) * r
+        if self.residual:
+            output = output + input
+
+        # distances = self.gc_layers(output, adj)
+        # largest_distances, indices = torch.topk(distances.view(-1), 5, largest=True)
 
         return output
+
 
 class GCNII(nn.Module):
     def __init__(self, nfeat, nlayers,nhidden, nclass, dropout, lamda, alpha, variant):
@@ -109,6 +127,40 @@ class GCNII(nn.Module):
         for i,con in enumerate(self.convs):
             layer_inner = F.dropout(layer_inner, self.dropout, training=self.training)
             layer_inner = self.act_fn(con(layer_inner,adj,_layers[0],self.lamda,self.alpha,i+1))
+
+            # node degrees
+            degrees = adj.sum(dim=1)
+
+            # Find indices of top 100 nodes with highest degrees
+            _, top_nodes = torch.topk(degrees.values(), 25, largest=False)
+
+            # # Extract the submatrix of adj corresponding to the top nodes
+            # sub_adj = adj.to_dense()[top_nodes, :][:, top_nodes]
+            # # Find pairs of nodes in the top 100 that are connected
+            # connected_pairs = (sub_adj > 0).nonzero(as_tuple=False)
+
+            connected_pairs = [],  connected_values = [], pair_dict = {}
+            for node in top_nodes:
+                # Find nodes connected to the current top node
+                connected_nodes = ((adj.to_dense())[node] > 0).nonzero(as_tuple=False).squeeze()
+                for cn in connected_nodes:
+                    tes = []
+                    # xi_detached = x_i.t().detach().cpu().numpy()
+                    # for i, xi in enumerate(xi_detached):
+                    teitem = te.te_compute(input[node].detach().cpu().numpy(), input[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
+                    # try to update support only for nodes with connections that have smallest feature length
+                    support[node] *= teitem
+                    # pair_dict[(node.item(), cn.item())] = teitem
+                    # tes.append(teitem)  # * float(i+1))
+                    #                detached = torch.tensor(tes).to(device).to(torch.float32)
+
+                # # Create pairs (top node, connected node)
+                # pairs = torch.stack([node.repeat(connected_nodes.size(0)), connected_nodes], dim=1)
+                # connected_pairs.append(pairs)
+                # pair_dict = dict(zip(connected_pairs, [None]*len(connected_pairs)))
+                # connected_values.append(input[connected_nodes])
+                # connected_pairs = torch.cat(connected_pairs, dim=0)
+
         layer_inner = F.dropout(layer_inner, self.dropout, training=self.training)
         layer_inner = self.fcs[-1](layer_inner)
         return F.log_softmax(layer_inner, dim=1)
