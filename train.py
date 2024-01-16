@@ -10,6 +10,19 @@ import torch.optim as optim
 from utils import *
 from model import *
 import uuid
+import neptune
+
+
+token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxMDVkMzRmYS1hODJlLTQ3OGItYjdiYi0zZTJhMGI1ZGNhOGIifQ=="
+pname = "adrian.moldovan/GNN"
+
+# run = neptune.init_run(
+#     project=pname,
+#     api_token=token,
+#     source_files=['*.py'],
+#     tags = ["max_nodes + TE, min nodes - TE", "after coonvolutions"]
+#     # mode='read-only'
+# )
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -39,9 +52,13 @@ adj, features, labels,idx_train,idx_val,idx_test = load_citation(args.data)
 cudaid = "cuda:"+str(args.dev)
 device = torch.device(cudaid)
 features = features.to(device)
+#bfeatures = features.copy().to(device)
 adj = adj.to(device)
+#badj = adj.copy().to(device)
 checkpt_file = 'pretrained/'+uuid.uuid4().hex+'.pt'
+bcheckpt_file = 'pretrained/'+uuid.uuid4().hex+'.pt'
 print(cudaid,checkpt_file)
+#print(cudaid,bcheckpt_file)
 
 model = GCNII(nfeat=features.shape[1],
                 nlayers=args.layer,
@@ -51,11 +68,24 @@ model = GCNII(nfeat=features.shape[1],
                 lamda = args.lamda, 
                 alpha=args.alpha,
                 variant=args.variant).to(device)
+# bmodel = GCNII(nfeat=features.shape[1],
+#               nlayers=args.layer,
+#               nhidden=args.hidden,
+#               nclass=int(labels.max()) + 1,
+#               dropout=args.dropout,
+#               lamda = args.lamda,
+#               alpha=args.alpha,
+#               variant=args.variant,
+#               base=True).to(device)
 
 optimizer = optim.Adam([
                         {'params':model.params1,'weight_decay':args.wd1},
                         {'params':model.params2,'weight_decay':args.wd2},
                         ],lr=args.lr)
+# boptimizer = optim.Adam([
+#                         {'params':bmodel.params1,'weight_decay':args.wd1},
+#                         {'params':bmodel.params2,'weight_decay':args.wd2},
+#                         ],lr=args.lr)
 
 def train():
     model.train()
@@ -65,6 +95,15 @@ def train():
     loss_train = F.nll_loss(output[idx_train], labels[idx_train].to(device))
     loss_train.backward()
     optimizer.step()
+
+    # #base model training
+    # bmodel.train()
+    # boptimizer.zero_grad()
+    # boutput = bmodel(features,adj)
+    # bacc_train = accuracy(boutput[idx_train], labels[idx_train].to(device))
+    # bloss_train = F.nll_loss(boutput[idx_train], labels[idx_train].to(device))
+    # bloss_train.backward()
+    # boptimizer.step()
     return loss_train.item(),acc_train.item()
 
 
@@ -74,6 +113,12 @@ def validate():
         output = model(features,adj)
         loss_val = F.nll_loss(output[idx_val], labels[idx_val].to(device))
         acc_val = accuracy(output[idx_val], labels[idx_val].to(device))
+
+    # bmodel.eval()
+    # with torch.no_grad():
+    #     boutput = bmodel(features,adj)
+    #     loss_val = F.nll_loss(output[idx_val], labels[idx_val].to(device))
+    #     acc_val = accuracy(output[idx_val], labels[idx_val].to(device))
         return loss_val.item(),acc_val.item()
 
 def test():
@@ -84,7 +129,17 @@ def test():
         loss_test = F.nll_loss(output[idx_test], labels[idx_test].to(device))
         acc_test = accuracy(output[idx_test], labels[idx_test].to(device))
         return loss_test.item(),acc_test.item()
-    
+#
+# def log(key, val):
+#     run[key].append(val)
+#
+# def log_set(dict:dict, baseline=False):
+#     for k in dict.keys():
+#         if baseline == True:
+#             run[k + '_b'].append(dict[k])
+#         else:
+#             run[k].append(dict[k])
+
 t_total = time.time()
 bad_counter = 0
 best = 999999999
@@ -101,6 +156,8 @@ for epoch in range(args.epochs):
             '| val',
             'loss:{:.3f}'.format(loss_val),
             'acc:{:.2f}'.format(acc_val*100))
+    # log_set({"train_acc" : train_acc, "train_loss": loss, "epoch": epoch, "val_acc" : val_acc, "test_acc" : test_acc})
+    # log_set(dfbaseline.loc[dfbaseline['epoch'].eq(epoch+1)].to_dict(orient='records')[0], baseline=True)
     if loss_val < best:
         best = loss_val
         best_epoch = epoch

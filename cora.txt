@@ -695,6 +695,7 @@ Epoch:0693 train loss:0.786 acc:75.00 | val loss:0.842 acc:83.40
 Train cost: 374.6283s
 Load 592th epoch
 Test acc.:85.7
+
 CORA with TE: support[node] *= teitem
 train.py --data cora --layer 64 --variant --test 
 Epoch:0001 train loss:1.948 acc:17.86 | val loss:1.939 acc:30.80
