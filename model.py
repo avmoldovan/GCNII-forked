@@ -137,8 +137,8 @@ class GCNII(nn.Module):
         degrees = adj.sum(dim=1)
 
         # Find indices of top 100 nodes with highest degrees
-        _, min_nodes = torch.topk(degrees.values(), 50, largest=False)
-        _, max_nodes = torch.topk(degrees.values(), 10, largest=True)
+        _, min_nodes = torch.topk(degrees.values(), int(adj.size(0)/50), largest=False)
+        _, max_nodes = torch.topk(degrees.values(), int(adj.size(0)/99), largest=True)
 
         # # Extract the submatrix of adj corresponding to the top nodes
         # sub_adj = adj.to_dense()[top_nodes, :][:, top_nodes]
@@ -154,7 +154,7 @@ class GCNII(nn.Module):
                 # for i, xi in enumerate(xi_detached):
                 teitem = te.te_compute(layer_inner[node].detach().cpu().numpy(), layer_inner[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
                 # try to update support only for nodes with connections that have smallest feature length
-                layer_inner[node] += teitem
+                layer_inner[node] += np.abs(teitem)
 
         teitem = 0.0
         connected_pairs = []
@@ -169,7 +169,7 @@ class GCNII(nn.Module):
                 # for i, xi in enumerate(xi_detached):
                 teitem = te.te_compute(layer_inner[node].detach().cpu().numpy(), layer_inner[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
                 # try to update support only for nodes with connections that have smallest feature length
-                layer_inner[node] -= teitem
+                layer_inner[node] -= np.abs(teitem)
                 # pair_dict[(node.item(), cn.item())] = teitem
                 # tes.append(teitem)  # * float(i+1))
                 #                detached = torch.tensor(tes).to(device).to(torch.float32)
