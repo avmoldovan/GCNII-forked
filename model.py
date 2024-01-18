@@ -154,7 +154,7 @@ class GCNII(nn.Module):
                 # for i, xi in enumerate(xi_detached):
                 teitem = te.te_compute(layer_inner[node].detach().cpu().numpy(), layer_inner[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
                 # try to update support only for nodes with connections that have smallest feature length
-                layer_inner[node] += np.abs(teitem)
+                layer_inner[node] += 0.9*np.abs(teitem)
 
         teitem = 0.0
         connected_pairs = []
@@ -169,7 +169,7 @@ class GCNII(nn.Module):
                 # for i, xi in enumerate(xi_detached):
                 teitem = te.te_compute(layer_inner[node].detach().cpu().numpy(), layer_inner[cn].detach().cpu().numpy(), k=1, embedding=1, safetyCheck=False, GPU=False)
                 # try to update support only for nodes with connections that have smallest feature length
-                layer_inner[node] -= np.abs(teitem)
+                layer_inner[node] -= 0.9*np.abs(teitem)
                 # pair_dict[(node.item(), cn.item())] = teitem
                 # tes.append(teitem)  # * float(i+1))
                 #                detached = torch.tensor(tes).to(device).to(torch.float32)

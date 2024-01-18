@@ -26,7 +26,7 @@ pname = "adrian.moldovan/GNN"
 
 # Training settings
 parser = argparse.ArgumentParser()
-parser.add_argument('--seed', type=int, default=42, help='Random seed.')
+parser.add_argument('--seed', type=int, default=24, help='Random seed.')
 parser.add_argument('--epochs', type=int, default=1500, help='Number of epochs to train.')
 parser.add_argument('--lr', type=float, default=0.01, help='learning rate.')
 parser.add_argument('--wd1', type=float, default=0.01, help='weight decay (L2 loss on parameters).')
