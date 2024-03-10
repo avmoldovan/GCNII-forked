@@ -13,8 +13,8 @@ import uuid
 import neptune
 
 
-token = "eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiIxMDVkMzRmYS1hODJlLTQ3OGItYjdiYi0zZTJhMGI1ZGNhOGIifQ=="
-pname = "adrian.moldovan/GNN"
+token = ""
+pname = ""
 
 # run = neptune.init_run(
 #     project=pname,
