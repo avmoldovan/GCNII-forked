@@ -1,5 +1,7 @@
 from __future__ import division
 from __future__ import print_function
+
+import os
 import time
 import random
 import argparse
@@ -13,8 +15,8 @@ import uuid
 import neptune
 
 
-token = ""
-pname = ""
+token = os.getenv("NEPTUNE_TOKEN")
+pname = "adrian.moldovan/GNN"
 
 # run = neptune.init_run(
 #     project=pname,
